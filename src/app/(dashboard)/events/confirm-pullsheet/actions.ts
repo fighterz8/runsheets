@@ -12,11 +12,11 @@ export const initialParseState: ParseState = {
 }
 
 export async function parsePullsheetAction(_state: ParseState, formData: FormData): Promise<ParseState> {
-  const file = formData.get('pullsheet')
+  const file = formData.getAll('pullsheet').find((value): value is File => value instanceof File && value.size > 0)
   const source = String(formData.get('source') ?? 'ops_upload')
 
-  if (!(file instanceof File) || file.size === 0) {
-    return { parsed: emptyPullsheet(), message: 'Choose a pullsheet photo.' }
+  if (!file) {
+    return { parsed: emptyPullsheet(), message: 'Choose or take a pullsheet photo first.' }
   }
 
   const name = file.name.toLowerCase()

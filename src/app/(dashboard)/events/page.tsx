@@ -25,7 +25,7 @@ export default async function EventsPage() {
           {profile.role === 'admin' ? (
             <Link className={buttonVariants({ size: 'lg' })} href="/events/new">Create event</Link>
           ) : null}
-          {profile.role === 'warehouse' ? (
+          {profile.role === 'admin' || profile.role === 'warehouse' ? (
             <Link className={buttonVariants({ size: 'lg' })} href="/events/confirm-pullsheet">
               Photograph pullsheet
             </Link>

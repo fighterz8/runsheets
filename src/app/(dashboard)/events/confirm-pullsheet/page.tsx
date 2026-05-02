@@ -5,11 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 export default async function ConfirmPullsheetPage({ searchParams }: { searchParams: Promise<{ event_id?: string }> }) {
   const [profile, params] = await Promise.all([requireProfile(), searchParams])
 
-  if (profile.role !== 'warehouse') {
+  if (profile.role === 'viewer') {
     return (
       <div className="space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Warehouse pullsheet photos only</h1>
-        <p className="text-muted-foreground">Admin creates the event shell. Warehouse photographs and confirms the pullsheet.</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Read-only access</h1>
+        <p className="text-muted-foreground">Viewer accounts can inspect events but cannot upload pullsheets.</p>
       </div>
     )
   }
@@ -25,7 +25,7 @@ export default async function ConfirmPullsheetPage({ searchParams }: { searchPar
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-12">
       <div className="rounded-[2rem] bg-gradient-to-br from-slate-950 to-slate-800 p-7 text-white shadow-sm sm:p-10">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/60">Warehouse</p>
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/60">{profile.role === 'admin' ? 'Admin test path' : 'Warehouse'}</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Photograph pullsheet</h1>
         <p className="mt-4 max-w-2xl text-lg text-white/70">
           Take or upload a clear photo. Vision extracts the lines, then you review and lock the pullsheet for counting.

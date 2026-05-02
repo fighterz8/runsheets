@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState } from 'react'
 import { createWarehousePullsheetAction } from '@/app/(dashboard)/events/actions'
 import { parsePullsheetAction } from '@/app/(dashboard)/events/confirm-pullsheet/actions'
 import type { ParsedPullsheet } from '@/lib/pullsheet-parser'
@@ -15,7 +15,7 @@ const parseInitialState = {
     eventName: '',
     eventDate: '',
     items: [],
-    note: 'No warehouse photo parsed yet.',
+    note: 'No photo parsed yet.',
     source: 'empty' as const,
   },
 }
@@ -55,7 +55,7 @@ function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPu
           </div>
           {events.length === 0 ? (
             <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
-              No draft events are waiting for a pullsheet. Ask admin to create the event name and date first.
+              No blank events are waiting for a pullsheet. Create an event with just name and date first.
             </p>
           ) : null}
         </CardContent>
@@ -110,24 +110,33 @@ function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPu
 export function ConfirmPullsheetForm({ events, selectedEventId }: { events: EventOption[]; selectedEventId?: string }) {
   const [parseState, parseAction, parsing] = useActionState(parsePullsheetAction, parseInitialState)
   const parsed = parseState?.parsed ?? parseInitialState.parsed
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
 
   return (
     <div className="space-y-6">
       <Card className="rounded-[2rem] border-border/60 shadow-sm">
         <CardHeader className="p-6 sm:p-8">
-          <CardTitle className="text-2xl">Upload photo</CardTitle>
+          <CardTitle className="text-2xl">Photo input</CardTitle>
           <CardDescription>
-            Use the tablet camera or choose an image. Spreadsheet and manual entry are intentionally disabled for the warehouse path.
+            Take a picture on tablet, or upload an existing image while testing. The photo is read with Vision; spreadsheet upload comes later.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
-          <form action={parseAction} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <form action={parseAction} className="space-y-4">
             <input type="hidden" name="source" value="warehouse_photo" />
-            <div className="space-y-2">
-              <Label htmlFor="pullsheet">Pullsheet photo</Label>
-              <Input id="pullsheet" name="pullsheet" type="file" accept="image/*" capture="environment" required />
+            <Input ref={cameraInputRef} id="pullsheet-camera" name="pullsheet" type="file" accept="image/*" capture="environment" className="sr-only" />
+            <Input ref={uploadInputRef} id="pullsheet-upload" name="pullsheet" type="file" accept="image/*" className="sr-only" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button type="button" size="lg" className="min-h-16 rounded-2xl text-base" onClick={() => cameraInputRef.current?.click()}>
+                Take picture
+              </Button>
+              <Button type="button" size="lg" variant="outline" className="min-h-16 rounded-2xl text-base" onClick={() => uploadInputRef.current?.click()}>
+                Upload photo for testing
+              </Button>
             </div>
-            <Button type="submit" size="lg" disabled={parsing}>{parsing ? 'Reading photo…' : 'Read with Vision'}</Button>
+            <p className="text-sm text-muted-foreground">After choosing a photo, tap Read with Vision.</p>
+            <Button type="submit" size="lg" className="w-full" disabled={parsing}>{parsing ? 'Reading photo…' : 'Read with Vision'}</Button>
           </form>
           {parseState.message ? <p className="mt-4 rounded-2xl bg-destructive/10 p-4 text-sm text-destructive">{parseState.message}</p> : null}
         </CardContent>
