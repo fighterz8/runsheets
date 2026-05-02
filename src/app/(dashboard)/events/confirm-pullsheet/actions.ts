@@ -7,6 +7,16 @@ type ParseState = {
   message?: string
 }
 
+function parseErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : 'Could not parse pullsheet.'
+
+  if (message.includes('429') || message.toLowerCase().includes('insufficient_quota') || message.toLowerCase().includes('exceeded your current quota')) {
+    return 'OpenAI rejected the Vision request for quota/billing on the configured API key. Check the OPENAI_API_KEY project billing/quota in Vercel, then try again.'
+  }
+
+  return message
+}
+
 export async function parsePullsheetAction(_state: ParseState, formData: FormData): Promise<ParseState> {
   const file = formData.getAll('pullsheet').find((value): value is File => value instanceof File && value.size > 0)
   const source = String(formData.get('source') ?? 'ops_upload')
@@ -35,7 +45,7 @@ export async function parsePullsheetAction(_state: ParseState, formData: FormDat
   } catch (error) {
     return {
       parsed: emptyPullsheet(),
-      message: error instanceof Error ? error.message : 'Could not parse pullsheet.',
+      message: parseErrorMessage(error),
     }
   }
 }
