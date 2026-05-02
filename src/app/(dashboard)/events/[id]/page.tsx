@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { activateEventAction } from '../actions'
+import { activateEventAction, confirmPullsheetAction } from '../actions'
 import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
@@ -14,7 +14,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const { data: event } = await supabase
     .from('events')
-    .select('id, org_id, name, event_date, status, created_by, created_at, closed_at')
+    .select('id, org_id, name, event_date, status, created_by, created_at, closed_at, pullsheet_source, pullsheet_confirmed_at, pullsheet_confirmed_by')
     .eq('id', id)
     .single()
 
@@ -43,7 +43,13 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <p className="text-muted-foreground">{typedEvent.event_date}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          {profile.role === 'admin' && typedEvent.status === 'draft' ? (
+          {profile.role !== 'viewer' && !typedEvent.pullsheet_confirmed_at ? (
+            <form action={confirmPullsheetAction}>
+              <input type="hidden" name="event_id" value={typedEvent.id} />
+              <Button type="submit" variant="outline">Confirm pullsheet</Button>
+            </form>
+          ) : null}
+          {profile.role === 'admin' && typedEvent.status === 'draft' && typedEvent.pullsheet_confirmed_at ? (
             <form action={activateEventAction}>
               <input type="hidden" name="event_id" value={typedEvent.id} />
               <Button type="submit">Activate for counting</Button>
@@ -56,7 +62,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       <Card>
         <CardHeader>
           <CardTitle>Pullsheet</CardTitle>
-          <CardDescription>{typedItems.length} item{typedItems.length === 1 ? '' : 's'} expected back.</CardDescription>
+          <CardDescription>
+            {typedItems.length} item{typedItems.length === 1 ? '' : 's'} expected back. Source: {typedEvent.pullsheet_source.replace('_', ' ')}.
+            {typedEvent.pullsheet_confirmed_at ? ' Confirmed.' : ' Awaiting confirmation before count begins.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {itemsError ? <p className="text-sm text-destructive">{itemsError.message}</p> : null}

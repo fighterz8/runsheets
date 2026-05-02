@@ -19,7 +19,7 @@ export function PullsheetForm() {
       <Card>
         <CardHeader>
           <CardTitle>Event details</CardTitle>
-          <CardDescription>Create a draft event before warehouse counts begin.</CardDescription>
+          <CardDescription>Create a draft event manually when ops skips pullsheet upload.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -30,6 +30,7 @@ export function PullsheetForm() {
             <Label htmlFor="event_date">Event date</Label>
             <Input id="event_date" name="event_date" type="date" required />
           </div>
+          <input type="hidden" name="pullsheet_source" value="manual" />
         </CardContent>
       </Card>
 

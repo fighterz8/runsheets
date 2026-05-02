@@ -13,7 +13,7 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
 
   const { data: event } = await supabase
     .from('events')
-    .select('id, org_id, name, event_date, status, created_by, created_at, closed_at')
+    .select('id, org_id, name, event_date, status, created_by, created_at, closed_at, pullsheet_source, pullsheet_confirmed_at, pullsheet_confirmed_by')
     .eq('id', id)
     .single()
 

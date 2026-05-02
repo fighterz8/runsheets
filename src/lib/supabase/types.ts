@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'warehouse'
+export type UserRole = 'admin' | 'warehouse' | 'viewer'
 
 export type UserProfile = {
   id: string
@@ -19,6 +19,9 @@ export type EventRow = {
   created_by: string
   created_at: string
   closed_at: string | null
+  pullsheet_source: 'manual' | 'ops_upload' | 'warehouse_photo'
+  pullsheet_confirmed_at: string | null
+  pullsheet_confirmed_by: string | null
 }
 
 export type PullsheetItemRow = {

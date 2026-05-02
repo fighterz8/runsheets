@@ -11,7 +11,7 @@ export default async function EventsPage() {
   const supabase = await createClient()
   const { data: events, error } = await supabase
     .from('events')
-    .select('id, org_id, name, event_date, status, created_by, created_at, closed_at')
+    .select('id, org_id, name, event_date, status, created_by, created_at, closed_at, pullsheet_source, pullsheet_confirmed_at, pullsheet_confirmed_by')
     .order('event_date', { ascending: false })
 
   return (
@@ -21,9 +21,16 @@ export default async function EventsPage() {
           <p className="text-sm text-muted-foreground">Snake Oil Cocktail Co.</p>
           <h1 className="text-3xl font-semibold tracking-tight">Events</h1>
         </div>
-        {profile.role === 'admin' ? (
-          <Link className={buttonVariants()} href="/events/new">Create event</Link>
-        ) : null}
+        <div className="flex flex-wrap gap-3">
+          {profile.role === 'admin' ? (
+            <Link className={buttonVariants()} href="/events/new">Create event</Link>
+          ) : null}
+          {profile.role === 'warehouse' ? (
+            <Link className={buttonVariants()} href="/events/confirm-pullsheet?source=warehouse_photo">
+              Photograph pullsheet
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {error ? (

@@ -7,12 +7,12 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const orgId = process.env.RUNSHEETS_ORG_ID ?? '00000000-0000-0000-0000-000000000001'
 
 if (!email || !password) {
-  console.error('Usage: pnpm create-user <email> <password> [admin|warehouse]')
+  console.error('Usage: pnpm create-user <email> <password> [admin|warehouse|viewer]')
   process.exit(1)
 }
 
-if (!['admin', 'warehouse'].includes(role)) {
-  console.error('Role must be admin or warehouse')
+if (!['admin', 'warehouse', 'viewer'].includes(role)) {
+  console.error('Role must be admin, warehouse, or viewer')
   process.exit(1)
 }
 
