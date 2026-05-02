@@ -20,10 +20,42 @@ const parseInitialState = {
   },
 }
 
+const MAX_SCAN_IMAGE_DIMENSION = 1600
+const SCAN_IMAGE_QUALITY = 0.78
+
 type EventOption = {
   id: string
   name: string
   eventDate: string
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+async function resizeImageForVision(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file
+
+  const image = await createImageBitmap(file)
+  const scale = Math.min(1, MAX_SCAN_IMAGE_DIMENSION / Math.max(image.width, image.height))
+  const width = Math.max(1, Math.round(image.width * scale))
+  const height = Math.max(1, Math.round(image.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')
+  if (!context) return file
+
+  context.drawImage(image, 0, 0, width, height)
+  image.close()
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', SCAN_IMAGE_QUALITY))
+  if (!blob || blob.size >= file.size) return file
+
+  const name = file.name.replace(/\.[^.]+$/, '') || 'pullsheet'
+  return new File([blob], `${name}-scan.jpg`, { type: 'image/jpeg', lastModified: Date.now() })
 }
 
 function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPullsheet; events: EventOption[]; selectedEventId?: string }) {
@@ -114,6 +146,8 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string>('')
+  const [selectedFileDetails, setSelectedFileDetails] = useState<string>('')
+  const [preparingImage, setPreparingImage] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -121,18 +155,35 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
     }
   }, [previewUrl])
 
-  function handleFileSelected(source: 'camera' | 'upload') {
+  async function handleFileSelected(source: 'camera' | 'upload') {
     const activeInput = source === 'camera' ? cameraInputRef.current : uploadInputRef.current
     const inactiveInput = source === 'camera' ? uploadInputRef.current : cameraInputRef.current
     const file = activeInput?.files?.[0]
 
     if (inactiveInput) inactiveInput.value = ''
+    if (!file || !activeInput) {
+      setSelectedFileName('')
+      setSelectedFileDetails('')
+      setPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current)
+        return null
+      })
+      return
+    }
+
+    setPreparingImage(true)
+    const scanFile = await resizeImageForVision(file).catch(() => file)
+    const transfer = new DataTransfer()
+    transfer.items.add(scanFile)
+    activeInput.files = transfer.files
 
     setPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current)
-      return file ? URL.createObjectURL(file) : null
+      return URL.createObjectURL(scanFile)
     })
-    setSelectedFileName(file?.name ?? '')
+    setSelectedFileName(scanFile.name)
+    setSelectedFileDetails(`${formatBytes(scanFile.size)} scan image${scanFile.size < file.size ? `, compressed from ${formatBytes(file.size)}` : ''}`)
+    setPreparingImage(false)
   }
 
   return (
@@ -164,12 +215,13 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
                 <div className="min-w-0 py-2">
                   <p className="text-sm font-medium">Ready to scan</p>
                   <p className="truncate text-sm text-muted-foreground">{selectedFileName || 'Selected image'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">This is the exact image that will be sent to Vision.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{selectedFileDetails || 'Preparing scan image…'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">This resized image is what will be sent to Vision.</p>
                 </div>
               </div>
             ) : null}
-            <p className="text-sm text-muted-foreground">After choosing a photo, tap Read with Vision.</p>
-            <Button type="submit" size="lg" className="w-full" disabled={parsing}>{parsing ? 'Reading photo…' : 'Read with Vision'}</Button>
+            <p className="text-sm text-muted-foreground">After choosing a photo, tap Read with Vision. Keep this tab open until the review rows appear.</p>
+            <Button type="submit" size="lg" className="w-full" disabled={parsing || preparingImage}>{preparingImage ? 'Preparing photo…' : parsing ? 'Reading photo…' : 'Read with Vision'}</Button>
           </form>
           {parseState.message ? <p className="mt-4 rounded-2xl bg-destructive/10 p-4 text-sm text-destructive">{parseState.message}</p> : null}
         </CardContent>

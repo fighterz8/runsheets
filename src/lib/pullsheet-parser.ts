@@ -81,12 +81,15 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
     throw new Error('OpenAI Vision is not configured. Add OPENAI_API_KEY before photographing pullsheets.')
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 1 })
+  const model = process.env.OPENAI_VISION_MODEL ?? 'gpt-4o-mini'
+  const startedAt = Date.now()
   const bytes = Buffer.from(await file.arrayBuffer())
   const dataUrl = `data:${file.type || 'image/jpeg'};base64,${bytes.toString('base64')}`
 
   const response = await client.responses.create({
-    model: process.env.OPENAI_VISION_MODEL ?? 'gpt-4o-mini',
+    model,
+    max_output_tokens: 1800,
     input: [
       {
         role: 'user',
@@ -122,7 +125,7 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
       expectedQty: Math.max(0, Math.round(toNumber(item.expectedQty))),
       unitPrice: Math.max(0, toNumber(item.unitPrice)),
     })).filter((item) => item.name),
-    note: `Vision parsed ${parsed.items.length} line item${parsed.items.length === 1 ? '' : 's'} from ${file.name}. Review before saving.`,
+    note: `Vision parsed ${parsed.items.length} line item${parsed.items.length === 1 ? '' : 's'} from ${file.name} using ${model} in ${Math.round((Date.now() - startedAt) / 1000)}s. Review before saving.`,
     source: 'vision',
   }
 }
