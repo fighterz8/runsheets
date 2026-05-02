@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { createWarehousePullsheetAction } from '@/app/(dashboard)/events/actions'
 import { parsePullsheetAction } from '@/app/(dashboard)/events/confirm-pullsheet/actions'
 import type { ParsedPullsheet } from '@/lib/pullsheet-parser'
@@ -112,6 +112,28 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
   const parsed = parseState?.parsed ?? parseInitialState.parsed
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [selectedFileName, setSelectedFileName] = useState<string>('')
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
+
+  function handleFileSelected(source: 'camera' | 'upload') {
+    const activeInput = source === 'camera' ? cameraInputRef.current : uploadInputRef.current
+    const inactiveInput = source === 'camera' ? uploadInputRef.current : cameraInputRef.current
+    const file = activeInput?.files?.[0]
+
+    if (inactiveInput) inactiveInput.value = ''
+
+    setPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current)
+      return file ? URL.createObjectURL(file) : null
+    })
+    setSelectedFileName(file?.name ?? '')
+  }
 
   return (
     <div className="space-y-6">
@@ -125,8 +147,8 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
         <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
           <form action={parseAction} className="space-y-4">
             <input type="hidden" name="source" value="warehouse_photo" />
-            <Input ref={cameraInputRef} id="pullsheet-camera" name="pullsheet" type="file" accept="image/*" capture="environment" className="sr-only" />
-            <Input ref={uploadInputRef} id="pullsheet-upload" name="pullsheet" type="file" accept="image/*" className="sr-only" />
+            <Input ref={cameraInputRef} id="pullsheet-camera" name="pullsheet" type="file" accept="image/*" capture="environment" className="sr-only" onChange={() => handleFileSelected('camera')} />
+            <Input ref={uploadInputRef} id="pullsheet-upload" name="pullsheet" type="file" accept="image/*" className="sr-only" onChange={() => handleFileSelected('upload')} />
             <div className="grid gap-3 sm:grid-cols-2">
               <Button type="button" size="lg" className="min-h-16 rounded-2xl text-base" onClick={() => cameraInputRef.current?.click()}>
                 Take picture
@@ -135,6 +157,17 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
                 Upload photo for testing
               </Button>
             </div>
+            {previewUrl ? (
+              <div className="flex gap-4 rounded-3xl border bg-muted/40 p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="Selected pullsheet preview" className="h-28 w-28 rounded-2xl border bg-background object-cover" />
+                <div className="min-w-0 py-2">
+                  <p className="text-sm font-medium">Ready to scan</p>
+                  <p className="truncate text-sm text-muted-foreground">{selectedFileName || 'Selected image'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">This is the exact image that will be sent to Vision.</p>
+                </div>
+              </div>
+            ) : null}
             <p className="text-sm text-muted-foreground">After choosing a photo, tap Read with Vision.</p>
             <Button type="submit" size="lg" className="w-full" disabled={parsing}>{parsing ? 'Reading photo…' : 'Read with Vision'}</Button>
           </form>
