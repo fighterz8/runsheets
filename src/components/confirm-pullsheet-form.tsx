@@ -21,8 +21,8 @@ const parseInitialState = {
   },
 }
 
-const MAX_SCAN_IMAGE_DIMENSION = 1600
-const SCAN_IMAGE_QUALITY = 0.78
+const MAX_SCAN_IMAGE_DIMENSION = 1400
+const SCAN_IMAGE_QUALITY = 0.72
 
 type EventOption = {
   id: string

@@ -172,3 +172,63 @@ export async function activateEventAction(formData: FormData) {
   revalidatePath('/events')
   revalidatePath(`/events/${eventId}`)
 }
+
+export async function clearPullsheetAction(formData: FormData) {
+  const profile = await requireProfile()
+
+  if (profile.role !== 'warehouse' && profile.role !== 'admin') {
+    return
+  }
+
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+
+  if (!eventId) {
+    return
+  }
+
+  const { data: event } = await supabase
+    .from('events')
+    .update({
+      pullsheet_confirmed_at: null,
+      pullsheet_confirmed_by: null,
+      pullsheet_source: 'warehouse_photo',
+    })
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+    .eq('status', 'draft')
+    .select('id')
+    .single()
+
+  if (event) {
+    await supabase.from('pullsheet_items').delete().eq('event_id', event.id)
+  }
+
+  revalidatePath('/events')
+  revalidatePath(`/events/${eventId}`)
+}
+
+export async function deleteDraftEventAction(formData: FormData) {
+  const profile = await requireProfile()
+
+  if (profile.role !== 'warehouse' && profile.role !== 'admin') {
+    return
+  }
+
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+
+  if (!eventId) {
+    return
+  }
+
+  await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+    .eq('status', 'draft')
+
+  revalidatePath('/events')
+  redirect('/events')
+}

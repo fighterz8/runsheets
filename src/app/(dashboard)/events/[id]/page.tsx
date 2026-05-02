@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { activateEventAction } from '../actions'
+import { activateEventAction, clearPullsheetAction, deleteDraftEventAction } from '../actions'
 import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
@@ -55,6 +55,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             </form>
           ) : null}
           <Link className={buttonVariants({ variant: 'outline', size: 'lg' })} href={`/events/${typedEvent.id}/count`}>Open count view</Link>
+          {(profile.role === 'warehouse' || profile.role === 'admin') && typedEvent.status === 'draft' && typedEvent.pullsheet_confirmed_at ? (
+            <form action={clearPullsheetAction}>
+              <input type="hidden" name="event_id" value={typedEvent.id} />
+              <Button type="submit" variant="outline">Clear pullsheet</Button>
+            </form>
+          ) : null}
+          {(profile.role === 'warehouse' || profile.role === 'admin') && typedEvent.status === 'draft' ? (
+            <form action={deleteDraftEventAction}>
+              <input type="hidden" name="event_id" value={typedEvent.id} />
+              <Button type="submit" variant="destructive">Delete draft</Button>
+            </form>
+          ) : null}
         </div>
       </div>
 

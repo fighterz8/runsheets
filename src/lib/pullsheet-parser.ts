@@ -94,7 +94,7 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
     throw new Error('OpenAI Vision is not configured. Add OPENAI_API_KEY before photographing pullsheets.')
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 1 })
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 75_000, maxRetries: 0 })
   const model = process.env.OPENAI_VISION_MODEL ?? 'gpt-4o-mini'
   const startedAt = Date.now()
   const bytes = Buffer.from(await file.arrayBuffer())
@@ -124,7 +124,7 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
               'Do not invent example rows such as Tequila, Chardonnay, or IPA Beer unless those exact items are visible in the uploaded image.',
             ].join(' '),
           },
-          { type: 'input_image', image_url: dataUrl, detail: 'high' },
+          { type: 'input_image', image_url: dataUrl, detail: 'auto' },
         ],
       },
     ],
