@@ -1,0 +1,107 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { requireAdmin } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
+
+type CreateEventState = {
+  message?: string
+}
+
+function toInt(value: FormDataEntryValue | null, fallback = 0) {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function toCents(value: FormDataEntryValue | null) {
+  const amount = Number.parseFloat(String(value ?? '0'))
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0
+}
+
+export async function createEventAction(
+  _state: CreateEventState,
+  formData: FormData,
+): Promise<CreateEventState> {
+  const profile = await requireAdmin()
+  const supabase = await createClient()
+
+  const name = String(formData.get('name') ?? '').trim()
+  const eventDate = String(formData.get('event_date') ?? '').trim()
+
+  if (!name || !eventDate) {
+    return { message: 'Event name and date are required.' }
+  }
+
+  const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
+  const skus = formData.getAll('sku')
+  const quantities = formData.getAll('expected_qty')
+  const prices = formData.getAll('unit_price')
+  const sealedCases = new Set(formData.getAll('is_sealed_case').map(String))
+  const auditFlags = new Set(formData.getAll('audit_flagged').map(String))
+
+  const items = itemNames
+    .map((itemName, index) => ({
+      sku: String(skus[index] ?? '').trim() || null,
+      name: itemName,
+      expected_qty: toInt(quantities[index], 0),
+      unit_price_cents: toCents(prices[index]),
+      is_sealed_case: sealedCases.has(String(index)),
+      audit_flagged: auditFlags.has(String(index)),
+    }))
+    .filter((item) => item.name.length > 0)
+
+  if (items.length === 0) {
+    return { message: 'Add at least one pullsheet item.' }
+  }
+
+  if (items.some((item) => item.expected_qty < 0 || item.unit_price_cents < 0)) {
+    return { message: 'Quantities and prices cannot be negative.' }
+  }
+
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .insert({
+      org_id: profile.org_id,
+      name,
+      event_date: eventDate,
+      status: 'draft',
+      created_by: profile.id,
+    })
+    .select('id')
+    .single()
+
+  if (eventError || !event) {
+    return { message: eventError?.message ?? 'Could not create event.' }
+  }
+
+  const { error: itemsError } = await supabase
+    .from('pullsheet_items')
+    .insert(items.map((item) => ({ ...item, event_id: event.id })))
+
+  if (itemsError) {
+    return { message: itemsError.message }
+  }
+
+  revalidatePath('/events')
+  redirect(`/events/${event.id}`)
+}
+
+export async function activateEventAction(formData: FormData) {
+  const profile = await requireAdmin()
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+
+  if (!eventId) {
+    return
+  }
+
+  await supabase
+    .from('events')
+    .update({ status: 'active' })
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+
+  revalidatePath('/events')
+  revalidatePath(`/events/${eventId}`)
+}
