@@ -33,32 +33,6 @@ export async function createEventAction(
     return { message: 'Event name and date are required.' }
   }
 
-  const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
-  const skus = formData.getAll('sku')
-  const quantities = formData.getAll('expected_qty')
-  const prices = formData.getAll('unit_price')
-  const sealedCases = new Set(formData.getAll('is_sealed_case').map(String))
-  const auditFlags = new Set(formData.getAll('audit_flagged').map(String))
-
-  const items = itemNames
-    .map((itemName, index) => ({
-      sku: String(skus[index] ?? '').trim() || null,
-      name: itemName,
-      expected_qty: toInt(quantities[index], 0),
-      unit_price_cents: toCents(prices[index]),
-      is_sealed_case: sealedCases.has(String(index)),
-      audit_flagged: auditFlags.has(String(index)),
-    }))
-    .filter((item) => item.name.length > 0)
-
-  if (items.length === 0) {
-    return { message: 'Add at least one pullsheet item.' }
-  }
-
-  if (items.some((item) => item.expected_qty < 0 || item.unit_price_cents < 0)) {
-    return { message: 'Quantities and prices cannot be negative.' }
-  }
-
   const { data: event, error: eventError } = await supabase
     .from('events')
     .insert({
@@ -67,21 +41,13 @@ export async function createEventAction(
       event_date: eventDate,
       status: 'draft',
       created_by: profile.id,
-      pullsheet_source: String(formData.get('pullsheet_source') ?? 'manual'),
+      pullsheet_source: 'warehouse_photo',
     })
     .select('id')
     .single()
 
   if (eventError || !event) {
     return { message: eventError?.message ?? 'Could not create event.' }
-  }
-
-  const { error: itemsError } = await supabase
-    .from('pullsheet_items')
-    .insert(items.map((item) => ({ ...item, event_id: event.id })))
-
-  if (itemsError) {
-    return { message: itemsError.message }
   }
 
   revalidatePath('/events')
@@ -100,11 +66,10 @@ export async function createWarehousePullsheetAction(
   }
 
   const supabase = await createClient()
-  const name = String(formData.get('name') ?? '').trim()
-  const eventDate = String(formData.get('event_date') ?? '').trim()
+  const eventId = String(formData.get('event_id') ?? '').trim()
 
-  if (!name || !eventDate) {
-    return { message: 'Event name and date are required after reviewing the parsed pullsheet.' }
+  if (!eventId) {
+    return { message: 'Choose the event this photographed pullsheet belongs to.' }
   }
 
   const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
@@ -127,22 +92,22 @@ export async function createWarehousePullsheetAction(
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .insert({
-      org_id: profile.org_id,
-      name,
-      event_date: eventDate,
-      status: 'draft',
-      created_by: profile.id,
+    .update({
       pullsheet_source: 'warehouse_photo',
       pullsheet_confirmed_at: new Date().toISOString(),
       pullsheet_confirmed_by: profile.id,
     })
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+    .is('pullsheet_confirmed_at', null)
     .select('id')
     .single()
 
   if (eventError || !event) {
-    return { message: eventError?.message ?? 'Could not create event from warehouse pullsheet.' }
+    return { message: eventError?.message ?? 'Could not lock pullsheet for that event.' }
   }
+
+  await supabase.from('pullsheet_items').delete().eq('event_id', event.id)
 
   const { error: itemsError } = await supabase
     .from('pullsheet_items')

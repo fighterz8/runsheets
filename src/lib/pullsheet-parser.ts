@@ -78,12 +78,7 @@ export async function parseSpreadsheetPullsheet(file: File): Promise<ParsedPulls
 
 export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet> {
   if (!process.env.OPENAI_API_KEY) {
-    return {
-      ...filenameGuess(file.name),
-      items: [{ name: '', expectedQty: 0, unitPrice: 0 }],
-      note: 'OpenAI API key is not configured. Enter the photographed pullsheet manually for now.',
-      source: 'vision',
-    }
+    throw new Error('OpenAI Vision is not configured. Add OPENAI_API_KEY before photographing pullsheets.')
   }
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -91,7 +86,7 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
   const dataUrl = `data:${file.type || 'image/jpeg'};base64,${bytes.toString('base64')}`
 
   const response = await client.responses.create({
-    model: 'gpt-5.4-mini',
+    model: process.env.OPENAI_VISION_MODEL ?? 'gpt-4o-mini',
     input: [
       {
         role: 'user',
@@ -109,6 +104,10 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
   const text = response.output_text.trim().replace(/^```json\s*/i, '').replace(/```$/i, '')
   const parsed = JSON.parse(text) as { eventName?: string; eventDate?: string; items?: ParsedPullsheetItem[] }
 
+  if (!parsed.items?.length) {
+    throw new Error('Vision could not find pullsheet line items in that image. Try a sharper, well-lit photo.')
+  }
+
   return {
     eventName: normalize(parsed.eventName) || filenameGuess(file.name).eventName,
     eventDate: normalize(parsed.eventDate),
@@ -117,7 +116,7 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
       expectedQty: Math.max(0, Math.round(toNumber(item.expectedQty))),
       unitPrice: Math.max(0, toNumber(item.unitPrice)),
     })).filter((item) => item.name),
-    note: `Vision parsed ${parsed.items?.length ?? 0} line item${parsed.items?.length === 1 ? '' : 's'} from ${file.name}. Review before saving.`,
+    note: `Vision parsed ${parsed.items.length} line item${parsed.items.length === 1 ? '' : 's'} from ${file.name}. Review before saving.`,
     source: 'vision',
   }
 }
@@ -127,7 +126,7 @@ export function emptyPullsheet(): ParsedPullsheet {
     eventName: '',
     eventDate: '',
     items: [{ name: '', expectedQty: 0, unitPrice: 0 }],
-    note: 'No upload yet. Enter or correct the pullsheet before saving.',
+    note: 'No warehouse photo parsed yet.',
     source: 'empty',
   }
 }

@@ -34,17 +34,17 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
     return count.counted_qty === item.expected_qty ? 'matched' : 'discrepancy'
   }, [count, item.expected_qty])
   const statusClasses = {
-    pending: 'border-muted bg-muted/30',
-    matched: 'border-emerald-500 bg-emerald-50 text-emerald-950',
-    discrepancy: 'border-red-500 bg-red-50 text-red-950',
+    pending: 'border-border bg-card text-card-foreground',
+    matched: 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-emerald-100',
+    discrepancy: 'border-red-300 bg-red-50 text-red-950 shadow-red-100',
   }[status]
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${statusClasses}`}>
+      <DialogTrigger className={`min-h-40 rounded-[2rem] border p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${statusClasses}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold">{item.name}</h2>
+            <h2 className="text-xl font-semibold tracking-tight">{item.name}</h2>
             <p className="mt-2 text-sm opacity-75">Expected: {item.expected_qty}</p>
           </div>
           <Badge variant={status === 'pending' ? 'secondary' : status === 'matched' ? 'default' : 'destructive'}>
@@ -57,7 +57,7 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
           {item.audit_flagged ? <Badge variant="outline">audit photo required</Badge> : null}
         </div>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-[2rem] p-6 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{item.name}</DialogTitle>
           <DialogDescription>Expected quantity: {item.expected_qty}</DialogDescription>
@@ -68,14 +68,14 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
           <input type="hidden" name="audit_flagged" value={String(item.audit_flagged)} />
           <div className="space-y-2">
             <Label htmlFor={`count-${item.id}`}>Counted quantity</Label>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setQuantity((value) => Math.max(0, value - 1))}>-1</Button>
-              <Input id={`count-${item.id}`} name="counted_qty" type="number" min="0" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} />
-              <Button type="button" variant="outline" onClick={() => setQuantity((value) => value + 1)}>+1</Button>
+            <div className="flex gap-3">
+              <Button type="button" size="lg" variant="outline" onClick={() => setQuantity((value) => Math.max(0, value - 1))}>-1</Button>
+              <Input id={`count-${item.id}`} name="counted_qty" type="number" min="0" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} className="text-center text-lg font-semibold" />
+              <Button type="button" size="lg" variant="outline" onClick={() => setQuantity((value) => value + 1)}>+1</Button>
             </div>
           </div>
           {item.is_sealed_case ? (
-            <Button type="button" variant="outline" onClick={() => setQuantity(item.expected_qty)}>
+            <Button type="button" size="lg" variant="outline" className="w-full" onClick={() => setQuantity(item.expected_qty)}>
               Sealed case shortcut: matches expected
             </Button>
           ) : null}
@@ -86,7 +86,7 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
             </div>
           ) : null}
           {state.message ? <p className="text-sm text-destructive">{state.message}</p> : null}
-          <Button type="submit" disabled={pending} onClick={() => !item.audit_flagged && setOpen(false)}>
+          <Button type="submit" size="lg" className="w-full" disabled={pending} onClick={() => !item.audit_flagged && setOpen(false)}>
             {pending ? 'Confirming…' : 'Confirm count'}
           </Button>
         </form>

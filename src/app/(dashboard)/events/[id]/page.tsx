@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { activateEventAction, confirmPullsheetAction } from '../actions'
+import { activateEventAction } from '../actions'
 import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
@@ -43,11 +43,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <p className="text-muted-foreground">{typedEvent.event_date}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          {profile.role !== 'viewer' && !typedEvent.pullsheet_confirmed_at ? (
-            <form action={confirmPullsheetAction}>
-              <input type="hidden" name="event_id" value={typedEvent.id} />
-              <Button type="submit" variant="outline">Confirm pullsheet</Button>
-            </form>
+          {profile.role === 'warehouse' && !typedEvent.pullsheet_confirmed_at ? (
+            <Link className={buttonVariants({ size: 'lg' })} href={`/events/confirm-pullsheet?event_id=${typedEvent.id}`}>
+              Photograph pullsheet
+            </Link>
           ) : null}
           {profile.role === 'admin' && typedEvent.status === 'draft' && typedEvent.pullsheet_confirmed_at ? (
             <form action={activateEventAction}>
@@ -55,7 +54,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               <Button type="submit">Activate for counting</Button>
             </form>
           ) : null}
-          <Link className={buttonVariants({ variant: 'outline' })} href={`/events/${typedEvent.id}/count`}>Open count view</Link>
+          <Link className={buttonVariants({ variant: 'outline', size: 'lg' })} href={`/events/${typedEvent.id}/count`}>Open count view</Link>
         </div>
       </div>
 

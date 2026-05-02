@@ -23,10 +23,10 @@ export default async function EventsPage() {
         </div>
         <div className="flex flex-wrap gap-3">
           {profile.role === 'admin' ? (
-            <Link className={buttonVariants()} href="/events/new">Create event</Link>
+            <Link className={buttonVariants({ size: 'lg' })} href="/events/new">Create event</Link>
           ) : null}
           {profile.role === 'warehouse' ? (
-            <Link className={buttonVariants()} href="/events/confirm-pullsheet?source=warehouse_photo">
+            <Link className={buttonVariants({ size: 'lg' })} href="/events/confirm-pullsheet">
               Photograph pullsheet
             </Link>
           ) : null}
@@ -74,7 +74,7 @@ export default async function EventsPage() {
         <Card>
           <CardHeader>
             <CardTitle>No events yet</CardTitle>
-            <CardDescription>Create a draft event with a manual pullsheet to start testing auth + RLS.</CardDescription>
+            <CardDescription>Admin creates an event first; warehouse photographs the pullsheet to unlock counting.</CardDescription>
           </CardHeader>
         </Card>
       ) : null}

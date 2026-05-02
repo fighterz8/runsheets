@@ -11,46 +11,68 @@ import { Label } from '@/components/ui/label'
 
 const saveInitialState: { message?: string } = {}
 
-function PullsheetEditor({ parsed }: { parsed: ParsedPullsheet }) {
-  const [rows, setRows] = useState(parsed.items.length ? parsed.items : [{ name: '', expectedQty: 0, unitPrice: 0 }])
+type EventOption = {
+  id: string
+  name: string
+  eventDate: string
+}
+
+function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPullsheet; events: EventOption[]; selectedEventId?: string }) {
+  const [rows, setRows] = useState(parsed.items)
   const [saveState, saveAction, saving] = useActionState(createWarehousePullsheetAction, saveInitialState)
+
+  if (!parsed.items.length || parsed.source === 'empty') {
+    return null
+  }
 
   return (
     <form action={saveAction} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Confirm parsed pullsheet</CardTitle>
+      <Card className="rounded-[2rem] border-border/60 shadow-sm">
+        <CardHeader className="p-6 sm:p-8">
+          <CardTitle className="text-2xl">Review Vision results</CardTitle>
           <CardDescription>{parsed.note}</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="space-y-5 p-6 pt-0 sm:p-8 sm:pt-0">
           <div className="space-y-2">
-            <Label htmlFor="name">Event name</Label>
-            <Input id="name" name="name" defaultValue={parsed.eventName} required />
+            <Label htmlFor="event_id">Event</Label>
+            <select
+              id="event_id"
+              name="event_id"
+              defaultValue={selectedEventId ?? ''}
+              required
+              className="min-h-12 w-full rounded-xl border border-input bg-background px-4 text-base shadow-xs outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <option value="" disabled>Select event…</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>{event.name} — {event.eventDate}</option>
+              ))}
+            </select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="event_date">Event date</Label>
-            <Input id="event_date" name="event_date" type="date" defaultValue={parsed.eventDate} required />
-          </div>
+          {events.length === 0 ? (
+            <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
+              No draft events are waiting for a pullsheet. Ask admin to create the event name and date first.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Line items</CardTitle>
-          <CardDescription>Add, remove, or edit rows. Saving locks this pullsheet for counting.</CardDescription>
+      <Card className="rounded-[2rem] border-border/60 shadow-sm">
+        <CardHeader className="p-6 sm:p-8">
+          <CardTitle className="text-2xl">Line items</CardTitle>
+          <CardDescription>Correct Vision mistakes here. Saving locks this pullsheet for counting.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4 p-6 pt-0 sm:p-8 sm:pt-0">
           {rows.map((item, index) => (
-            <div key={index} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_120px_130px_auto]">
-              <div className="space-y-1">
+            <div key={index} className="grid gap-3 rounded-3xl border bg-background p-4 shadow-xs sm:grid-cols-[1fr_140px_140px_auto]">
+              <div className="space-y-2">
                 <Label>Item name</Label>
                 <Input name="item_name" defaultValue={item.name} required={index === 0} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label>Expected</Label>
                 <Input name="expected_qty" type="number" min="0" defaultValue={item.expectedQty} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label>Unit price</Label>
                 <Input name="unit_price" type="number" min="0" step="0.01" defaultValue={item.unitPrice} />
               </div>
@@ -58,6 +80,7 @@ function PullsheetEditor({ parsed }: { parsed: ParsedPullsheet }) {
                 <Button
                   type="button"
                   variant="outline"
+                  size="lg"
                   onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}
                   disabled={rows.length === 1}
                 >
@@ -67,10 +90,10 @@ function PullsheetEditor({ parsed }: { parsed: ParsedPullsheet }) {
             </div>
           ))}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button type="button" variant="outline" onClick={() => setRows((current) => [...current, { name: '', expectedQty: 0, unitPrice: 0 }])}>
+            <Button type="button" size="lg" variant="outline" onClick={() => setRows((current) => [...current, { name: '', expectedQty: 0, unitPrice: 0 }])}>
               Add row
             </Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Lock pullsheet and save event'}</Button>
+            <Button type="submit" size="lg" disabled={saving || events.length === 0}>{saving ? 'Saving…' : 'Lock pullsheet'}</Button>
           </div>
           {saveState.message ? <p className="text-sm text-destructive">{saveState.message}</p> : null}
         </CardContent>
@@ -79,33 +102,31 @@ function PullsheetEditor({ parsed }: { parsed: ParsedPullsheet }) {
   )
 }
 
-export function ConfirmPullsheetForm({ source }: { source: 'ops_upload' | 'warehouse_photo' }) {
+export function ConfirmPullsheetForm({ events, selectedEventId }: { events: EventOption[]; selectedEventId?: string }) {
   const [parseState, parseAction, parsing] = useActionState(parsePullsheetAction, initialParseState)
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{source === 'warehouse_photo' ? 'Upload pullsheet photo' : 'Upload pullsheet file'}</CardTitle>
+      <Card className="rounded-[2rem] border-border/60 shadow-sm">
+        <CardHeader className="p-6 sm:p-8">
+          <CardTitle className="text-2xl">Upload photo</CardTitle>
           <CardDescription>
-            {source === 'warehouse_photo'
-              ? 'Upload a pullsheet image. OpenAI Vision will return editable guesses.'
-              : 'Upload .xlsx or .csv. The parser will guess item, quantity, and price columns.'}
+            Use the tablet camera or choose an image. Spreadsheet and manual entry are intentionally disabled for the warehouse path.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={parseAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <input type="hidden" name="source" value={source} />
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="pullsheet">Pullsheet</Label>
-              <Input id="pullsheet" name="pullsheet" type="file" accept={source === 'warehouse_photo' ? 'image/*' : '.xlsx,.xls,.csv,image/*'} />
+        <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
+          <form action={parseAction} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <input type="hidden" name="source" value="warehouse_photo" />
+            <div className="space-y-2">
+              <Label htmlFor="pullsheet">Pullsheet photo</Label>
+              <Input id="pullsheet" name="pullsheet" type="file" accept="image/*" capture="environment" required />
             </div>
-            <Button type="submit" disabled={parsing}>{parsing ? 'Parsing…' : 'Parse upload'}</Button>
+            <Button type="submit" size="lg" disabled={parsing}>{parsing ? 'Reading photo…' : 'Read with Vision'}</Button>
           </form>
-          {parseState.message ? <p className="mt-3 text-sm text-destructive">{parseState.message}</p> : null}
+          {parseState.message ? <p className="mt-4 rounded-2xl bg-destructive/10 p-4 text-sm text-destructive">{parseState.message}</p> : null}
         </CardContent>
       </Card>
-      <PullsheetEditor parsed={parseState.parsed} />
+      <PullsheetEditor parsed={parseState.parsed} events={events} selectedEventId={selectedEventId} />
     </div>
   )
 }

@@ -16,7 +16,7 @@ export async function parsePullsheetAction(_state: ParseState, formData: FormDat
   const source = String(formData.get('source') ?? 'ops_upload')
 
   if (!(file instanceof File) || file.size === 0) {
-    return { parsed: emptyPullsheet(), message: 'Choose a pullsheet file or continue manually.' }
+    return { parsed: emptyPullsheet(), message: 'Choose a pullsheet photo.' }
   }
 
   const name = file.name.toLowerCase()
@@ -24,15 +24,18 @@ export async function parsePullsheetAction(_state: ParseState, formData: FormDat
   const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|heic)$/i.test(name)
 
   try {
+    if (source === 'warehouse_photo') {
+      if (!isImage) {
+        return { parsed: emptyPullsheet(), message: 'Warehouse pullsheets must be uploaded as an image.' }
+      }
+      return { parsed: await parseVisionPullsheet(file) }
+    }
+
     if (isSpreadsheet) {
       return { parsed: await parseSpreadsheetPullsheet(file) }
     }
 
-    if (isImage || source === 'warehouse_photo') {
-      return { parsed: await parseVisionPullsheet(file) }
-    }
-
-    return { parsed: emptyPullsheet(), message: 'Unsupported file type. Upload .xlsx, .csv, or an image.' }
+    return { parsed: emptyPullsheet(), message: 'Unsupported file type. Upload a pullsheet image.' }
   } catch (error) {
     return {
       parsed: emptyPullsheet(),

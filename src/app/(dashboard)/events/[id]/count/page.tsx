@@ -3,17 +3,10 @@ import { notFound } from 'next/navigation'
 import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
-import { CountTile } from '@/components/count-tile'
+import { CountBoard, type CountRecordLite } from '@/components/count-board'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-
-type CountRecordRow = {
-  id: string
-  pullsheet_item_id: string
-  counted_qty: number
-  audit_photo_url: string | null
-}
 
 export default async function CountPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, profile] = await Promise.all([params, requireProfile()])
@@ -52,23 +45,23 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
 
   const typedEvent = event as EventRow
   const typedItems = (items ?? []) as PullsheetItemRow[]
-  const typedCounts = (counts ?? []) as CountRecordRow[]
+  const typedCounts = (counts ?? []) as CountRecordLite[]
   const countByItem = new Map(typedCounts.map((count) => [count.pullsheet_item_id, count]))
   const allConfirmed = typedItems.length > 0 && typedItems.every((item) => countByItem.has(item.id))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link className={buttonVariants({ variant: 'link', className: 'h-auto p-0' })} href={`/events/${typedEvent.id}`}>← Event detail</Link>
-          <h1 className="text-3xl font-semibold tracking-tight">Count: {typedEvent.name}</h1>
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Count: {typedEvent.name}</h1>
           <div className="mt-2 flex items-center gap-2 text-muted-foreground">
             <span>{typedEvent.event_date}</span>
             <Badge variant={typedEvent.status === 'active' ? 'default' : 'secondary'}>{typedEvent.status}</Badge>
           </div>
         </div>
         {allConfirmed ? (
-          <Link className={buttonVariants()} href={`/events/${typedEvent.id}/report`}>
+          <Link className={buttonVariants({ size: 'lg' })} href={`/events/${typedEvent.id}/report`}>
             Generate Report
           </Link>
         ) : null}
@@ -83,11 +76,7 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
         </Card>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {typedItems.map((item) => (
-          <CountTile key={item.id} eventId={typedEvent.id} item={item} count={countByItem.get(item.id)} />
-        ))}
-      </div>
+      <CountBoard eventId={typedEvent.id} items={typedItems} countByItem={countByItem} />
 
       {typedItems.length === 0 ? (
         <Card>
