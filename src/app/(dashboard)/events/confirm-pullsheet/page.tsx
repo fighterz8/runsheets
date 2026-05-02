@@ -1,5 +1,4 @@
 import { ConfirmPullsheetForm } from '@/components/confirm-pullsheet-form'
-import { parsePullsheetUpload } from '@/lib/pullsheet-parser'
 import { requireProfile } from '@/lib/auth'
 
 export default async function ConfirmPullsheetPage({ searchParams }: { searchParams: Promise<{ source?: string }> }) {
@@ -15,18 +14,13 @@ export default async function ConfirmPullsheetPage({ searchParams }: { searchPar
     )
   }
 
-  const parsed = await parsePullsheetUpload(null)
-  parsed.note = source === 'warehouse_photo'
-    ? 'Warehouse photo parsing placeholder. Photograph upload will route here, then OpenAI Vision will populate guesses.'
-    : 'Ops upload parsing placeholder. Excel/photo upload will route here, then SheetJS or OpenAI Vision will populate guesses.'
-
   return (
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">{source === 'warehouse_photo' ? 'Warehouse pullsheet photo' : 'Ops manager upload'}</p>
         <h1 className="text-3xl font-semibold tracking-tight">Review before count begins</h1>
       </div>
-      <ConfirmPullsheetForm parsed={parsed} />
+      <ConfirmPullsheetForm source={source} />
     </div>
   )
 }

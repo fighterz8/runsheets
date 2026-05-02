@@ -109,12 +109,13 @@ export async function createWarehousePullsheetAction(
 
   const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
   const quantities = formData.getAll('expected_qty')
+  const prices = formData.getAll('unit_price')
   const items = itemNames
     .map((itemName, index) => ({
       sku: null,
       name: itemName,
       expected_qty: toInt(quantities[index], 0),
-      unit_price_cents: 0,
+      unit_price_cents: toCents(prices[index]),
       is_sealed_case: false,
       audit_flagged: false,
     }))
