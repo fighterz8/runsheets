@@ -2,13 +2,9 @@
 
 import { parseSpreadsheetPullsheet, parseVisionPullsheet, emptyPullsheet, type ParsedPullsheet } from '@/lib/pullsheet-parser'
 
-export type ParseState = {
+type ParseState = {
   parsed: ParsedPullsheet
   message?: string
-}
-
-export const initialParseState: ParseState = {
-  parsed: emptyPullsheet(),
 }
 
 export async function parsePullsheetAction(_state: ParseState, formData: FormData): Promise<ParseState> {
