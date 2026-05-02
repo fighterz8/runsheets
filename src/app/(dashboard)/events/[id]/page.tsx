@@ -7,6 +7,7 @@ import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AddLineItemForm } from '@/components/add-line-item-form'
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, profile] = await Promise.all([params, requireProfile()])
@@ -24,7 +25,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const { data: items, error: itemsError } = await supabase
     .from('pullsheet_items')
-    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, created_at')
+    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, is_unexpected, ops_review_status, image_url, created_at')
     .eq('event_id', id)
     .order('created_at')
 
@@ -118,6 +119,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           </div>
         </CardContent>
       </Card>
+      {profile.role === 'admin' ? <AddLineItemForm eventId={typedEvent.id} /> : null}
     </div>
   )
 }

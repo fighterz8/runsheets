@@ -56,7 +56,7 @@ export function CountBoard({ eventId, items, countByItem }: { eventId: string; i
               <p className="text-sm text-muted-foreground">{group.items.length} item{group.items.length === 1 ? '' : 's'}</p>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {group.items.map((item) => (
               <CountTile key={item.id} eventId={eventId} item={item} count={countByItem.get(item.id)} />
             ))}

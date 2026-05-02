@@ -36,5 +36,8 @@ export type PullsheetItemRow = {
   category: string
   alcohol_subcategory: string | null
   section_label: string
+  is_unexpected: boolean
+  ops_review_status: 'confirmed' | 'pending_review' | 'rejected'
+  image_url: string | null
   created_at: string
 }

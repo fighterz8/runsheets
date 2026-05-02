@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdmin, requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeAlcoholSubcategory, normalizeCategory } from '@/lib/pullsheet-categories'
 
 type CreateEventState = {
   message?: string
@@ -231,4 +232,38 @@ export async function deleteDraftEventAction(formData: FormData) {
 
   revalidatePath('/events')
   redirect('/events')
+}
+
+export async function addLineItemAction(formData: FormData) {
+  const profile = await requireProfile()
+
+  if (profile.role !== 'admin') {
+    return
+  }
+
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+  const name = String(formData.get('name') ?? '').trim()
+  const expectedQty = toInt(formData.get('expected_qty'), 0)
+  const category = normalizeCategory(formData.get('category'))
+  const alcoholSubcategory = category === 'Alcohol' ? normalizeAlcoholSubcategory(formData.get('alcohol_subcategory')) : null
+  const sectionLabel = String(formData.get('section_label') ?? category).trim() || category
+
+  if (!eventId || !name) {
+    return
+  }
+
+  await supabase.from('pullsheet_items').insert({
+    event_id: eventId,
+    name,
+    expected_qty: expectedQty,
+    unit_price_cents: 0,
+    category,
+    alcohol_subcategory: alcoholSubcategory,
+    section_label: sectionLabel,
+    ops_review_status: 'confirmed',
+  })
+
+  revalidatePath(`/events/${eventId}`)
+  revalidatePath(`/events/${eventId}/count`)
 }

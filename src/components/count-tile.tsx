@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { productImageUrl } from '@/lib/product-images'
 
 type CountTileProps = {
   eventId: string
@@ -19,6 +20,9 @@ type CountTileProps = {
     category: string
     alcohol_subcategory: string | null
     section_label: string
+    is_unexpected?: boolean
+    ops_review_status?: string
+    image_url?: string | null
   }
   count?: {
     counted_qty: number
@@ -34,33 +38,38 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
   const [state, formAction, pending] = useActionState(submitCountAction, initialState)
   const status = useMemo(() => {
     if (!count) return 'pending'
-    return count.counted_qty === item.expected_qty ? 'matched' : 'discrepancy'
+    const diff = Math.abs(count.counted_qty - item.expected_qty)
+    if (item.expected_qty === 0) return 'off'
+    if (diff === 0) return 'matched'
+    return diff / item.expected_qty > 0.1 ? 'major' : 'off'
   }, [count, item.expected_qty])
   const statusClasses = {
-    pending: 'border-border bg-card text-card-foreground',
-    matched: 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-emerald-100',
-    discrepancy: 'border-red-300 bg-red-50 text-red-950 shadow-red-100',
+    pending: 'border-slate-200 bg-slate-100 text-slate-950',
+    matched: 'border-emerald-300 bg-emerald-100 text-emerald-950 shadow-emerald-100',
+    off: 'border-amber-300 bg-amber-100 text-amber-950 shadow-amber-100',
+    major: 'border-red-300 bg-red-100 text-red-950 shadow-red-100',
   }[status]
   const namedSectionClass = item.category === 'Named Sections' ? 'ring-2 ring-violet-200 bg-violet-50/70' : ''
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={`min-h-40 rounded-[2rem] border p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${statusClasses} ${namedSectionClass}`}>
-        <div className="flex items-start justify-between gap-3">
+      <DialogTrigger className={`min-h-[160px] aspect-square rounded-[2rem] border p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${statusClasses} ${namedSectionClass}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={productImageUrl(item.name, item.image_url)} alt="" className="mb-3 h-20 w-full rounded-3xl object-cover" />
+        <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">{item.name}</h2>
-            <p className="mt-2 text-sm opacity-75">Expected: {item.expected_qty}</p>
+            <h2 className="line-clamp-2 text-lg font-semibold leading-tight tracking-tight">{item.name}</h2>
+            <p className="mt-2 text-sm opacity-75">Exp: {item.expected_qty}</p>
+            <p className="text-sm opacity-75">Count: {count?.counted_qty ?? '—'}</p>
           </div>
           <Badge variant={status === 'pending' ? 'secondary' : status === 'matched' ? 'default' : 'destructive'}>
-            {status === 'pending' ? 'gray' : status === 'matched' ? 'green' : 'red'}
+            {status === 'pending' ? 'gray' : status === 'matched' ? 'green' : status === 'off' ? 'yellow' : 'red'}
           </Badge>
         </div>
-        {count ? <p className="mt-4 text-sm">Counted: {count.counted_qty}</p> : <p className="mt-4 text-sm">Tap to count</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {item.is_unexpected ? <Badge variant="outline">ops review</Badge> : null}
           {item.is_sealed_case ? <Badge variant="outline">sealed case</Badge> : null}
           {item.audit_flagged ? <Badge variant="outline">audit photo required</Badge> : null}
-          <Badge variant="outline">{item.section_label}</Badge>
-          {item.alcohol_subcategory ? <Badge variant="outline">{item.alcohol_subcategory}</Badge> : null}
         </div>
       </DialogTrigger>
       <DialogContent className="rounded-[2rem] p-6 sm:max-w-lg">
@@ -92,7 +101,7 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
             </div>
           ) : null}
           {state.message ? <p className="text-sm text-destructive">{state.message}</p> : null}
-          <Button type="submit" size="lg" className="w-full" disabled={pending} onClick={() => !item.audit_flagged && setOpen(false)}>
+          <Button type="submit" size="lg" className="min-h-14 w-full text-lg" disabled={pending} onClick={() => !item.audit_flagged && setOpen(false)}>
             {pending ? 'Confirming…' : 'Confirm count'}
           </Button>
         </form>

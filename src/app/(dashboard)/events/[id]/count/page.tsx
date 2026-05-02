@@ -4,6 +4,7 @@ import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
 import { CountBoard, type CountRecordLite } from '@/components/count-board'
+import { UnexpectedItemForm } from '@/components/unexpected-item-form'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -34,8 +35,10 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
 
   const { data: items } = await supabase
     .from('pullsheet_items')
-    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, created_at')
+    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, is_unexpected, ops_review_status, image_url, created_at')
     .eq('event_id', id)
+    .in('category', ['Alcohol', 'SOC Cocktail Mixers', 'Named Sections'])
+    .neq('ops_review_status', 'rejected')
     .order('created_at')
 
   const { data: counts } = await supabase
@@ -47,7 +50,7 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
   const typedItems = (items ?? []) as PullsheetItemRow[]
   const typedCounts = (counts ?? []) as CountRecordLite[]
   const countByItem = new Map(typedCounts.map((count) => [count.pullsheet_item_id, count]))
-  const allConfirmed = typedItems.length > 0 && typedItems.every((item) => countByItem.has(item.id))
+  const allConfirmed = typedEvent.status === 'active' && typedItems.length > 0 && typedItems.every((item) => countByItem.has(item.id))
 
   return (
     <div className="space-y-8 pb-12">
@@ -77,6 +80,7 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
       ) : null}
 
       <CountBoard eventId={typedEvent.id} items={typedItems} countByItem={countByItem} />
+      {typedEvent.status === 'active' ? <UnexpectedItemForm eventId={typedEvent.id} /> : null}
 
       {typedItems.length === 0 ? (
         <Card>
