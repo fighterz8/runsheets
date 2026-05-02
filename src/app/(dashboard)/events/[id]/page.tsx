@@ -24,7 +24,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const { data: items, error: itemsError } = await supabase
     .from('pullsheet_items')
-    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, created_at')
+    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, created_at')
     .eq('event_id', id)
     .order('created_at')
 
@@ -73,6 +73,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               <thead className="bg-muted text-left">
                 <tr>
                   <th className="px-4 py-3 font-medium">Item</th>
+                  <th className="px-4 py-3 font-medium">Category</th>
+                  <th className="px-4 py-3 font-medium">Section</th>
                   <th className="px-4 py-3 font-medium">SKU</th>
                   <th className="px-4 py-3 font-medium">Expected</th>
                   <th className="px-4 py-3 font-medium">Flags</th>
@@ -82,6 +84,13 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                 {typedItems.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-3 font-medium">{item.name}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{item.category}</Badge>
+                        {item.alcohol_subcategory ? <Badge variant="outline">{item.alcohol_subcategory}</Badge> : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.section_label}</td>
                     <td className="px-4 py-3 text-muted-foreground">{item.sku ?? '—'}</td>
                     <td className="px-4 py-3">{item.expected_qty}</td>
                     <td className="px-4 py-3">

@@ -1,5 +1,6 @@
 import type { PullsheetItemRow } from '@/lib/supabase/types'
 import { CountTile } from '@/components/count-tile'
+import { isCountableCategory } from '@/lib/pullsheet-categories'
 
 export type CountRecordLite = {
   id: string
@@ -8,22 +9,30 @@ export type CountRecordLite = {
   audit_photo_url: string | null
 }
 
-const categories = [
-  { id: 'spirits', label: 'Spirits', tests: ['vodka', 'gin', 'rum', 'tequila', 'mezcal', 'whiskey', 'bourbon', 'scotch', 'rye', 'brandy', 'cognac', 'liqueur', 'amaro', 'aperol', 'campari'] },
-  { id: 'wine', label: 'Wine', tests: ['wine', 'chardonnay', 'sauvignon', 'pinot', 'cabernet', 'merlot', 'rose', 'rosé', 'prosecco', 'champagne', 'sparkling'] },
-  { id: 'beer', label: 'Beer', tests: ['beer', 'ipa', 'lager', 'pilsner', 'stout', 'ale', 'seltzer', 'cider'] },
+const baseFilters = [
+  { id: 'all', label: 'All', test: () => true },
+  { id: 'spirits', label: 'Spirits', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Spirits' },
+  { id: 'wine', label: 'Wine', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Wine' },
+  { id: 'beer', label: 'Beer', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Beer' },
+  { id: 'champagne', label: 'Champagne', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Champagne/Sparkling' },
+  { id: 'soc-mixers', label: 'SOC Mixers', test: (item: PullsheetItemRow) => item.category === 'SOC Cocktail Mixers' },
 ] as const
 
-function categoryFor(item: PullsheetItemRow) {
-  const haystack = `${item.name} ${item.sku ?? ''}`.toLowerCase()
-  return categories.find((category) => category.tests.some((test) => haystack.includes(test)))?.id ?? 'other'
+function idForSection(section: string) {
+  return section.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section'
 }
 
 export function CountBoard({ eventId, items, countByItem }: { eventId: string; items: PullsheetItemRow[]; countByItem: Map<string, CountRecordLite> }) {
+  const countableItems = items.filter((item) => isCountableCategory(item.category))
+  const namedSections = Array.from(new Set(countableItems.filter((item) => item.category === 'Named Sections').map((item) => item.section_label))).filter(Boolean)
   const groups = [
-    ...categories.map((category) => ({ id: category.id, label: category.label, items: items.filter((item) => categoryFor(item) === category.id) })),
-    { id: 'other', label: 'Other', items: items.filter((item) => categoryFor(item) === 'other') },
+    ...baseFilters.map((filter) => ({ id: filter.id, label: filter.label, items: countableItems.filter(filter.test) })),
+    ...namedSections.map((section) => ({ id: `section-${idForSection(section)}`, label: section, items: countableItems.filter((item) => item.category === 'Named Sections' && item.section_label === section) })),
   ].filter((group) => group.items.length > 0)
+
+  if (countableItems.length === 0) {
+    return <p className="rounded-3xl border p-6 text-muted-foreground">No countable items. Count view currently includes Alcohol, SOC Cocktail Mixers, and Named Sections only.</p>
+  }
 
   return (
     <div className="space-y-8">

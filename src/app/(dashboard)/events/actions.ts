@@ -75,6 +75,9 @@ export async function createWarehousePullsheetAction(
   const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
   const quantities = formData.getAll('expected_qty')
   const prices = formData.getAll('unit_price')
+  const categories = formData.getAll('category')
+  const alcoholSubcategories = formData.getAll('alcohol_subcategory')
+  const sectionLabels = formData.getAll('section_label')
   const items = itemNames
     .map((itemName, index) => ({
       sku: null,
@@ -83,6 +86,9 @@ export async function createWarehousePullsheetAction(
       unit_price_cents: toCents(prices[index]),
       is_sealed_case: false,
       audit_flagged: false,
+      category: String(categories[index] ?? 'Kitchen + Miscellaneous'),
+      alcohol_subcategory: String(alcoholSubcategories[index] ?? '').trim() || null,
+      section_label: String(sectionLabels[index] ?? categories[index] ?? 'Kitchen + Miscellaneous').trim(),
     }))
     .filter((item) => item.name.length > 0)
 

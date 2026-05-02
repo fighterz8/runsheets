@@ -16,6 +16,9 @@ type CountTileProps = {
     expected_qty: number
     is_sealed_case: boolean
     audit_flagged: boolean
+    category: string
+    alcohol_subcategory: string | null
+    section_label: string
   }
   count?: {
     counted_qty: number
@@ -38,10 +41,11 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
     matched: 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-emerald-100',
     discrepancy: 'border-red-300 bg-red-50 text-red-950 shadow-red-100',
   }[status]
+  const namedSectionClass = item.category === 'Named Sections' ? 'ring-2 ring-violet-200 bg-violet-50/70' : ''
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={`min-h-40 rounded-[2rem] border p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${statusClasses}`}>
+      <DialogTrigger className={`min-h-40 rounded-[2rem] border p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${statusClasses} ${namedSectionClass}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">{item.name}</h2>
@@ -55,6 +59,8 @@ export function CountTile({ eventId, item, count }: CountTileProps) {
         <div className="mt-3 flex flex-wrap gap-2">
           {item.is_sealed_case ? <Badge variant="outline">sealed case</Badge> : null}
           {item.audit_flagged ? <Badge variant="outline">audit photo required</Badge> : null}
+          <Badge variant="outline">{item.section_label}</Badge>
+          {item.alcohol_subcategory ? <Badge variant="outline">{item.alcohol_subcategory}</Badge> : null}
         </div>
       </DialogTrigger>
       <DialogContent className="rounded-[2rem] p-6 sm:max-w-lg">

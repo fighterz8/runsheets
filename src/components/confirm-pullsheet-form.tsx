@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ALCOHOL_SUBCATEGORIES, PULLSHEET_CATEGORIES } from '@/lib/pullsheet-categories'
 
 const saveInitialState: { message?: string } = {}
 const parseInitialState = {
@@ -100,7 +101,7 @@ function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPu
         </CardHeader>
         <CardContent className="space-y-4 p-6 pt-0 sm:p-8 sm:pt-0">
           {rows.map((item, index) => (
-            <div key={index} className="grid gap-3 rounded-3xl border bg-background p-4 shadow-xs sm:grid-cols-[1fr_140px_140px_auto]">
+            <div key={index} className="grid gap-3 rounded-3xl border bg-background p-4 shadow-xs sm:grid-cols-[1fr_150px_150px_auto]">
               <div className="space-y-2">
                 <Label>Item name</Label>
                 <Input name="item_name" defaultValue={item.name} required={index === 0} />
@@ -112,6 +113,23 @@ function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPu
               <div className="space-y-2">
                 <Label>Unit price</Label>
                 <Input name="unit_price" type="number" min="0" step="0.01" defaultValue={item.unitPrice} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Category</Label>
+                <select name="category" defaultValue={item.category} className="min-h-10 w-full rounded-xl border border-input bg-background px-3 text-sm shadow-xs outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+                  {PULLSHEET_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Alcohol type</Label>
+                <select name="alcohol_subcategory" defaultValue={item.alcoholSubcategory ?? ''} className="min-h-10 w-full rounded-xl border border-input bg-background px-3 text-sm shadow-xs outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+                  <option value="">None</option>
+                  {ALCOHOL_SUBCATEGORIES.map((subcategory) => <option key={subcategory} value={subcategory}>{subcategory}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Section label</Label>
+                <Input name="section_label" defaultValue={item.sectionLabel} placeholder="Exact pullsheet header" />
               </div>
               <div className="flex items-end">
                 <Button
@@ -127,7 +145,7 @@ function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPu
             </div>
           ))}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button type="button" size="lg" variant="outline" onClick={() => setRows((current) => [...current, { name: '', expectedQty: 0, unitPrice: 0 }])}>
+            <Button type="button" size="lg" variant="outline" onClick={() => setRows((current) => [...current, { name: '', expectedQty: 0, unitPrice: 0, category: 'Kitchen + Miscellaneous', alcoholSubcategory: '', sectionLabel: 'Kitchen + Miscellaneous' }])}>
               Add row
             </Button>
             <Button type="submit" size="lg" disabled={saving || events.length === 0}>{saving ? 'Saving…' : 'Lock pullsheet'}</Button>

@@ -34,7 +34,7 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
 
   const { data: items } = await supabase
     .from('pullsheet_items')
-    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, created_at')
+    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, created_at')
     .eq('event_id', id)
     .order('created_at')
 
