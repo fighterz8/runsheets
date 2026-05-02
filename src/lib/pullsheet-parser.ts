@@ -48,6 +48,28 @@ function filenameGuess(fileName: string) {
   return { eventName: base || 'Untitled event', eventDate }
 }
 
+function parseVisionJson(text: string) {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim()
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('Vision returned text instead of JSON. Try scanning again with the page flatter and better lit.')
+  }
+
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as { eventName?: string; eventDate?: string; items?: ParsedPullsheetItem[] }
+  } catch (error) {
+    console.error('Vision JSON parse failed', {
+      error: error instanceof Error ? error.message : String(error),
+      length: cleaned.length,
+      preview: cleaned.slice(0, 500),
+      tail: cleaned.slice(-500),
+    })
+    throw new Error('Vision read the image but returned incomplete JSON. I tightened the parser; please scan again. If it repeats, use a closer/cropped photo of one page.')
+  }
+}
+
 export async function parseSpreadsheetPullsheet(file: File): Promise<ParsedPullsheet> {
   const buffer = Buffer.from(await file.arrayBuffer())
   const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
@@ -102,7 +124,39 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
 
   const response = await client.responses.create({
     model,
-    max_output_tokens: 1800,
+    max_output_tokens: 6000,
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'pullsheet_parse',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            eventName: { type: 'string' },
+            eventDate: { type: 'string' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  name: { type: 'string' },
+                  expectedQty: { type: 'number' },
+                  unitPrice: { type: 'number' },
+                  category: { type: 'string' },
+                  alcoholSubcategory: { type: 'string' },
+                  sectionLabel: { type: 'string' },
+                },
+                required: ['name', 'expectedQty', 'unitPrice', 'category', 'alcoholSubcategory', 'sectionLabel'],
+              },
+            },
+          },
+          required: ['eventName', 'eventDate', 'items'],
+        },
+      },
+    },
     input: [
       {
         role: 'user',
@@ -130,8 +184,7 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
     ],
   })
 
-  const text = response.output_text.trim().replace(/^```json\s*/i, '').replace(/```$/i, '')
-  const parsed = JSON.parse(text) as { eventName?: string; eventDate?: string; items?: ParsedPullsheetItem[] }
+  const parsed = parseVisionJson(response.output_text)
 
   if (!parsed.items?.length) {
     throw new Error('Vision could not find pullsheet line items in that image. Try a sharper, well-lit photo.')
