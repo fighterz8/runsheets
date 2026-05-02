@@ -142,7 +142,7 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
         </CardContent>
       </Card>
       {parsed.source !== 'empty' && parsed.items.length > 0 ? (
-        <PullsheetEditor parsed={parsed} events={events} selectedEventId={selectedEventId} />
+        <PullsheetEditor key={parsed.note} parsed={parsed} events={events} selectedEventId={selectedEventId} />
       ) : null}
     </div>
   )

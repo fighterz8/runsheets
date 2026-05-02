@@ -93,7 +93,13 @@ export async function parseVisionPullsheet(file: File): Promise<ParsedPullsheet>
         content: [
           {
             type: 'input_text',
-            text: 'Extract this catering/warehouse pullsheet into strict JSON with keys: eventName string, eventDate YYYY-MM-DD or empty string, items array of {name string, expectedQty number, unitPrice number}. Return only JSON.',
+            text: [
+              'Extract this catering/warehouse pullsheet from the entire uploaded image, not a cropped or sample area.',
+              'Read every visible row/section/table on the page before answering.',
+              'Return strict JSON only with keys: eventName string, eventDate YYYY-MM-DD or empty string, items array of {name string, expectedQty number, unitPrice number}.',
+              'Use the item names exactly as printed when possible. Put the quantity/count/pulled amount in expectedQty. Use unitPrice 0 if no price is visible.',
+              'Do not invent example rows such as Tequila, Chardonnay, or IPA Beer unless those exact items are visible in the uploaded image.',
+            ].join(' '),
           },
           { type: 'input_image', image_url: dataUrl, detail: 'high' },
         ],
