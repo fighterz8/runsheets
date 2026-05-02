@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { createWarehousePullsheetAction } from '@/app/(dashboard)/events/actions'
-import { initialParseState, parsePullsheetAction } from '@/app/(dashboard)/events/confirm-pullsheet/actions'
+import { parsePullsheetAction } from '@/app/(dashboard)/events/confirm-pullsheet/actions'
 import type { ParsedPullsheet } from '@/lib/pullsheet-parser'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +10,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 const saveInitialState: { message?: string } = {}
+const parseInitialState = {
+  parsed: {
+    eventName: '',
+    eventDate: '',
+    items: [],
+    note: 'No warehouse photo parsed yet.',
+    source: 'empty' as const,
+  },
+}
 
 type EventOption = {
   id: string
@@ -20,10 +29,6 @@ type EventOption = {
 function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPullsheet; events: EventOption[]; selectedEventId?: string }) {
   const [rows, setRows] = useState(parsed.items)
   const [saveState, saveAction, saving] = useActionState(createWarehousePullsheetAction, saveInitialState)
-
-  if (!parsed.items.length || parsed.source === 'empty') {
-    return null
-  }
 
   return (
     <form action={saveAction} className="space-y-6">
@@ -103,7 +108,8 @@ function PullsheetEditor({ parsed, events, selectedEventId }: { parsed: ParsedPu
 }
 
 export function ConfirmPullsheetForm({ events, selectedEventId }: { events: EventOption[]; selectedEventId?: string }) {
-  const [parseState, parseAction, parsing] = useActionState(parsePullsheetAction, initialParseState)
+  const [parseState, parseAction, parsing] = useActionState(parsePullsheetAction, parseInitialState)
+  const parsed = parseState?.parsed ?? parseInitialState.parsed
 
   return (
     <div className="space-y-6">
@@ -126,7 +132,9 @@ export function ConfirmPullsheetForm({ events, selectedEventId }: { events: Even
           {parseState.message ? <p className="mt-4 rounded-2xl bg-destructive/10 p-4 text-sm text-destructive">{parseState.message}</p> : null}
         </CardContent>
       </Card>
-      <PullsheetEditor parsed={parseState.parsed} events={events} selectedEventId={selectedEventId} />
+      {parsed.source !== 'empty' && parsed.items.length > 0 ? (
+        <PullsheetEditor parsed={parsed} events={events} selectedEventId={selectedEventId} />
+      ) : null}
     </div>
   )
 }
