@@ -24,6 +24,8 @@ export type EventRow = {
   pullsheet_confirmed_by: string | null
 }
 
+export type ShrinkageResolution = 'Broken' | 'Missing' | 'Accounted For'
+
 export type PullsheetItemRow = {
   id: string
   event_id: string

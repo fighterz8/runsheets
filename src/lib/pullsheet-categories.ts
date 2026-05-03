@@ -10,6 +10,7 @@ export const PULLSHEET_CATEGORIES = [
   'Decor',
   'POS & Tech Equipment',
   'Named Sections',
+  'Glassware',
 ] as const
 
 export const ALCOHOL_SUBCATEGORIES = [
@@ -20,13 +21,29 @@ export const ALCOHOL_SUBCATEGORIES = [
   'Sake/Other',
 ] as const
 
+export const WAREHOUSE_ALCOHOL_SUBCATEGORIES = [
+  'Spirits',
+  'Wine',
+  'Champagne/Sparkling',
+  'Sake/Other',
+] as const
+
+export const GLASSWARE_RACKS = {
+  Rocks: 25,
+  Highball: 36,
+  Wine: 25,
+  Coupe: 25,
+  Flute: 36,
+} as const
+
 export type PullsheetCategory = (typeof PULLSHEET_CATEGORIES)[number]
 export type AlcoholSubcategory = (typeof ALCOHOL_SUBCATEGORIES)[number]
+export type ShrinkageResolution = 'Broken' | 'Missing' | 'Accounted For'
 
-export const COUNTABLE_CATEGORIES = ['Alcohol', 'SOC Cocktail Mixers', 'Named Sections'] as const
+export const COUNTABLE_CATEGORIES = ['Alcohol', 'SOC Cocktail Mixers', 'Glassware', 'Named Sections'] as const
 
-export function isCountableCategory(category: string | null | undefined) {
-  return category === 'Alcohol' || category === 'SOC Cocktail Mixers' || category === 'Named Sections'
+export function isCountableCategory(category: string | null | undefined, alcoholSubcategory?: string | null) {
+  return (category === 'Alcohol' && alcoholSubcategory !== 'Beer') || category === 'SOC Cocktail Mixers' || category === 'Glassware' || category === 'Named Sections'
 }
 
 export function normalizeCategory(value: unknown): PullsheetCategory {

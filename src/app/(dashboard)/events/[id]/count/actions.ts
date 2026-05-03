@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { normalizeAlcoholSubcategory } from '@/lib/pullsheet-categories'
+import { normalizeAlcoholSubcategory, type ShrinkageResolution } from '@/lib/pullsheet-categories'
 
 type CountState = {
   message?: string
@@ -25,6 +25,8 @@ export async function submitCountAction(_state: CountState, formData: FormData):
   const itemId = String(formData.get('item_id') ?? '')
   const countedQty = toInt(formData.get('counted_qty'))
   const auditFlagged = String(formData.get('audit_flagged') ?? '') === 'true'
+  const resolutionValue = String(formData.get('shrinkage_resolution') ?? '').trim()
+  const shrinkageResolution = ['Broken', 'Missing', 'Accounted For'].includes(resolutionValue) ? resolutionValue as ShrinkageResolution : null
   const photo = formData.get('audit_photo')
   const supabase = await createClient()
   let auditPhotoUrl: string | null = null
@@ -63,6 +65,7 @@ export async function submitCountAction(_state: CountState, formData: FormData):
     counted_qty: countedQty,
     counted_by: profile.id,
     audit_photo_url: auditPhotoUrl,
+    shrinkage_resolution: countedQty === 0 || countedQty < 999999 ? shrinkageResolution : null,
   }
 
   const { error } = existing?.id
@@ -77,7 +80,8 @@ export async function submitCountAction(_state: CountState, formData: FormData):
     .from('pullsheet_items')
     .select('id, count_records(id)')
     .eq('event_id', eventId)
-    .in('category', ['Alcohol', 'SOC Cocktail Mixers', 'Named Sections'])
+    .in('category', ['Alcohol', 'SOC Cocktail Mixers', 'Glassware', 'Named Sections'])
+    .or('alcohol_subcategory.is.null,alcohol_subcategory.neq.Beer')
     .neq('ops_review_status', 'rejected')
 
   const countableItems = remaining ?? []

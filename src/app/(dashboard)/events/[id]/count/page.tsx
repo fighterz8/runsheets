@@ -37,13 +37,14 @@ export default async function CountPage({ params }: { params: Promise<{ id: stri
     .from('pullsheet_items')
     .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, is_unexpected, ops_review_status, image_url, created_at')
     .eq('event_id', id)
-    .in('category', ['Alcohol', 'SOC Cocktail Mixers', 'Named Sections'])
+    .in('category', ['Alcohol', 'SOC Cocktail Mixers', 'Glassware', 'Named Sections'])
+    .or('alcohol_subcategory.is.null,alcohol_subcategory.neq.Beer')
     .neq('ops_review_status', 'rejected')
     .order('created_at')
 
   const { data: counts } = await supabase
     .from('count_records')
-    .select('id, pullsheet_item_id, counted_qty, audit_photo_url')
+    .select('id, pullsheet_item_id, counted_qty, audit_photo_url, shrinkage_resolution')
     .in('pullsheet_item_id', (items ?? []).map((item) => item.id))
 
   const typedEvent = event as EventRow
