@@ -56,6 +56,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             </form>
           ) : null}
           <Link className={buttonVariants({ variant: 'outline', size: 'lg' })} href={`/events/${typedEvent.id}/count`}>Open count view</Link>
+          {profile.role !== 'warehouse' ? (
+            <Link className={buttonVariants({ variant: 'outline', size: 'lg' })} href={`/events/${typedEvent.id}/report`}>PDF report</Link>
+          ) : null}
           {(profile.role === 'warehouse' || profile.role === 'admin') && typedEvent.status === 'draft' && typedEvent.pullsheet_confirmed_at ? (
             <form action={clearPullsheetAction}>
               <input type="hidden" name="event_id" value={typedEvent.id} />

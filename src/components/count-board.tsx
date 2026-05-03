@@ -7,15 +7,16 @@ export type CountRecordLite = {
   pullsheet_item_id: string
   counted_qty: number
   audit_photo_url: string | null
+  shrinkage_resolution: 'Broken' | 'Missing' | 'Accounted For' | null
 }
 
 const baseFilters = [
   { id: 'all', label: 'All', test: () => true },
   { id: 'spirits', label: 'Spirits', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Spirits' },
   { id: 'wine', label: 'Wine', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Wine' },
-  { id: 'beer', label: 'Beer', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Beer' },
   { id: 'champagne', label: 'Champagne', test: (item: PullsheetItemRow) => item.alcohol_subcategory === 'Champagne/Sparkling' },
   { id: 'soc-mixers', label: 'SOC Mixers', test: (item: PullsheetItemRow) => item.category === 'SOC Cocktail Mixers' },
+  { id: 'glassware', label: 'Glassware', test: (item: PullsheetItemRow) => item.category === 'Glassware' },
 ] as const
 
 function idForSection(section: string) {
@@ -23,7 +24,7 @@ function idForSection(section: string) {
 }
 
 export function CountBoard({ eventId, items, countByItem }: { eventId: string; items: PullsheetItemRow[]; countByItem: Map<string, CountRecordLite> }) {
-  const countableItems = items.filter((item) => isCountableCategory(item.category))
+  const countableItems = items.filter((item) => isCountableCategory(item.category, item.alcohol_subcategory))
   const namedSections = Array.from(new Set(countableItems.filter((item) => item.category === 'Named Sections').map((item) => item.section_label))).filter(Boolean)
   const groups = [
     ...baseFilters.map((filter) => ({ id: filter.id, label: filter.label, items: countableItems.filter(filter.test) })),
@@ -31,7 +32,7 @@ export function CountBoard({ eventId, items, countByItem }: { eventId: string; i
   ].filter((group) => group.items.length > 0)
 
   if (countableItems.length === 0) {
-    return <p className="rounded-3xl border p-6 text-muted-foreground">No countable items. Count view currently includes Alcohol, SOC Cocktail Mixers, and Named Sections only.</p>
+    return <p className="rounded-3xl border p-6 text-muted-foreground">No countable items. Count view currently includes Alcohol, SOC Cocktail Mixers, Glassware, and Named Sections only.</p>
   }
 
   return (
