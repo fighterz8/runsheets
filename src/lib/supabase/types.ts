@@ -33,5 +33,11 @@ export type PullsheetItemRow = {
   unit_price_cents: number
   is_sealed_case: boolean
   audit_flagged: boolean
+  category: string
+  alcohol_subcategory: string | null
+  section_label: string
+  is_unexpected: boolean
+  ops_review_status: 'confirmed' | 'pending_review' | 'rejected'
+  image_url: string | null
   created_at: string
 }

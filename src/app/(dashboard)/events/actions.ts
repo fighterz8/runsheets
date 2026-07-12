@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdmin, requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeAlcoholSubcategory, normalizeCategory } from '@/lib/pullsheet-categories'
 
 type CreateEventState = {
   message?: string
@@ -33,32 +34,6 @@ export async function createEventAction(
     return { message: 'Event name and date are required.' }
   }
 
-  const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
-  const skus = formData.getAll('sku')
-  const quantities = formData.getAll('expected_qty')
-  const prices = formData.getAll('unit_price')
-  const sealedCases = new Set(formData.getAll('is_sealed_case').map(String))
-  const auditFlags = new Set(formData.getAll('audit_flagged').map(String))
-
-  const items = itemNames
-    .map((itemName, index) => ({
-      sku: String(skus[index] ?? '').trim() || null,
-      name: itemName,
-      expected_qty: toInt(quantities[index], 0),
-      unit_price_cents: toCents(prices[index]),
-      is_sealed_case: sealedCases.has(String(index)),
-      audit_flagged: auditFlags.has(String(index)),
-    }))
-    .filter((item) => item.name.length > 0)
-
-  if (items.length === 0) {
-    return { message: 'Add at least one pullsheet item.' }
-  }
-
-  if (items.some((item) => item.expected_qty < 0 || item.unit_price_cents < 0)) {
-    return { message: 'Quantities and prices cannot be negative.' }
-  }
-
   const { data: event, error: eventError } = await supabase
     .from('events')
     .insert({
@@ -67,21 +42,13 @@ export async function createEventAction(
       event_date: eventDate,
       status: 'draft',
       created_by: profile.id,
-      pullsheet_source: String(formData.get('pullsheet_source') ?? 'manual'),
+      pullsheet_source: 'warehouse_photo',
     })
     .select('id')
     .single()
 
   if (eventError || !event) {
     return { message: eventError?.message ?? 'Could not create event.' }
-  }
-
-  const { error: itemsError } = await supabase
-    .from('pullsheet_items')
-    .insert(items.map((item) => ({ ...item, event_id: event.id })))
-
-  if (itemsError) {
-    return { message: itemsError.message }
   }
 
   revalidatePath('/events')
@@ -100,16 +67,18 @@ export async function createWarehousePullsheetAction(
   }
 
   const supabase = await createClient()
-  const name = String(formData.get('name') ?? '').trim()
-  const eventDate = String(formData.get('event_date') ?? '').trim()
+  const eventId = String(formData.get('event_id') ?? '').trim()
 
-  if (!name || !eventDate) {
-    return { message: 'Event name and date are required after reviewing the parsed pullsheet.' }
+  if (!eventId) {
+    return { message: 'Choose the event this photographed pullsheet belongs to.' }
   }
 
   const itemNames = formData.getAll('item_name').map((value) => String(value).trim())
   const quantities = formData.getAll('expected_qty')
   const prices = formData.getAll('unit_price')
+  const categories = formData.getAll('category')
+  const alcoholSubcategories = formData.getAll('alcohol_subcategory')
+  const sectionLabels = formData.getAll('section_label')
   const items = itemNames
     .map((itemName, index) => ({
       sku: null,
@@ -118,6 +87,9 @@ export async function createWarehousePullsheetAction(
       unit_price_cents: toCents(prices[index]),
       is_sealed_case: false,
       audit_flagged: false,
+      category: String(categories[index] ?? 'Kitchen + Miscellaneous'),
+      alcohol_subcategory: String(alcoholSubcategories[index] ?? '').trim() || null,
+      section_label: String(sectionLabels[index] ?? categories[index] ?? 'Kitchen + Miscellaneous').trim(),
     }))
     .filter((item) => item.name.length > 0)
 
@@ -127,22 +99,22 @@ export async function createWarehousePullsheetAction(
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .insert({
-      org_id: profile.org_id,
-      name,
-      event_date: eventDate,
-      status: 'draft',
-      created_by: profile.id,
+    .update({
       pullsheet_source: 'warehouse_photo',
       pullsheet_confirmed_at: new Date().toISOString(),
       pullsheet_confirmed_by: profile.id,
     })
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+    .is('pullsheet_confirmed_at', null)
     .select('id')
     .single()
 
   if (eventError || !event) {
-    return { message: eventError?.message ?? 'Could not create event from warehouse pullsheet.' }
+    return { message: eventError?.message ?? 'Could not lock pullsheet for that event.' }
   }
+
+  await supabase.from('pullsheet_items').delete().eq('event_id', event.id)
 
   const { error: itemsError } = await supabase
     .from('pullsheet_items')
@@ -200,4 +172,98 @@ export async function activateEventAction(formData: FormData) {
 
   revalidatePath('/events')
   revalidatePath(`/events/${eventId}`)
+}
+
+export async function clearPullsheetAction(formData: FormData) {
+  const profile = await requireProfile()
+
+  if (profile.role !== 'warehouse' && profile.role !== 'admin') {
+    return
+  }
+
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+
+  if (!eventId) {
+    return
+  }
+
+  const { data: event } = await supabase
+    .from('events')
+    .update({
+      pullsheet_confirmed_at: null,
+      pullsheet_confirmed_by: null,
+      pullsheet_source: 'warehouse_photo',
+    })
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+    .eq('status', 'draft')
+    .select('id')
+    .single()
+
+  if (event) {
+    await supabase.from('pullsheet_items').delete().eq('event_id', event.id)
+  }
+
+  revalidatePath('/events')
+  revalidatePath(`/events/${eventId}`)
+}
+
+export async function deleteDraftEventAction(formData: FormData) {
+  const profile = await requireProfile()
+
+  if (profile.role !== 'warehouse' && profile.role !== 'admin') {
+    return
+  }
+
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+
+  if (!eventId) {
+    return
+  }
+
+  await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId)
+    .eq('org_id', profile.org_id)
+    .eq('status', 'draft')
+
+  revalidatePath('/events')
+  redirect('/events')
+}
+
+export async function addLineItemAction(formData: FormData) {
+  const profile = await requireProfile()
+
+  if (profile.role !== 'admin') {
+    return
+  }
+
+  const supabase = await createClient()
+  const eventId = String(formData.get('event_id') ?? '')
+  const name = String(formData.get('name') ?? '').trim()
+  const expectedQty = toInt(formData.get('expected_qty'), 0)
+  const category = normalizeCategory(formData.get('category'))
+  const alcoholSubcategory = category === 'Alcohol' ? normalizeAlcoholSubcategory(formData.get('alcohol_subcategory')) : null
+  const sectionLabel = String(formData.get('section_label') ?? category).trim() || category
+
+  if (!eventId || !name) {
+    return
+  }
+
+  await supabase.from('pullsheet_items').insert({
+    event_id: eventId,
+    name,
+    expected_qty: expectedQty,
+    unit_price_cents: 0,
+    category,
+    alcohol_subcategory: alcoholSubcategory,
+    section_label: sectionLabel,
+    ops_review_status: 'confirmed',
+  })
+
+  revalidatePath(`/events/${eventId}`)
+  revalidatePath(`/events/${eventId}/count`)
 }

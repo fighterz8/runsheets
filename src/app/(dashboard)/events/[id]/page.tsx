@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { activateEventAction, confirmPullsheetAction } from '../actions'
+import { activateEventAction, clearPullsheetAction, deleteDraftEventAction } from '../actions'
 import { requireProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { EventRow, PullsheetItemRow } from '@/lib/supabase/types'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AddLineItemForm } from '@/components/add-line-item-form'
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, profile] = await Promise.all([params, requireProfile()])
@@ -24,7 +25,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const { data: items, error: itemsError } = await supabase
     .from('pullsheet_items')
-    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, created_at')
+    .select('id, event_id, sku, name, expected_qty, unit_price_cents, is_sealed_case, audit_flagged, category, alcohol_subcategory, section_label, is_unexpected, ops_review_status, image_url, created_at')
     .eq('event_id', id)
     .order('created_at')
 
@@ -43,11 +44,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <p className="text-muted-foreground">{typedEvent.event_date}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          {profile.role !== 'viewer' && !typedEvent.pullsheet_confirmed_at ? (
-            <form action={confirmPullsheetAction}>
-              <input type="hidden" name="event_id" value={typedEvent.id} />
-              <Button type="submit" variant="outline">Confirm pullsheet</Button>
-            </form>
+          {profile.role === 'warehouse' && !typedEvent.pullsheet_confirmed_at ? (
+            <Link className={buttonVariants({ size: 'lg' })} href={`/events/confirm-pullsheet?event_id=${typedEvent.id}`}>
+              Photograph pullsheet
+            </Link>
           ) : null}
           {profile.role === 'admin' && typedEvent.status === 'draft' && typedEvent.pullsheet_confirmed_at ? (
             <form action={activateEventAction}>
@@ -55,7 +55,19 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               <Button type="submit">Activate for counting</Button>
             </form>
           ) : null}
-          <Link className={buttonVariants({ variant: 'outline' })} href={`/events/${typedEvent.id}/count`}>Open count view</Link>
+          <Link className={buttonVariants({ variant: 'outline', size: 'lg' })} href={`/events/${typedEvent.id}/count`}>Open count view</Link>
+          {(profile.role === 'warehouse' || profile.role === 'admin') && typedEvent.status === 'draft' && typedEvent.pullsheet_confirmed_at ? (
+            <form action={clearPullsheetAction}>
+              <input type="hidden" name="event_id" value={typedEvent.id} />
+              <Button type="submit" variant="outline">Clear pullsheet</Button>
+            </form>
+          ) : null}
+          {(profile.role === 'warehouse' || profile.role === 'admin') && typedEvent.status === 'draft' ? (
+            <form action={deleteDraftEventAction}>
+              <input type="hidden" name="event_id" value={typedEvent.id} />
+              <Button type="submit" variant="destructive">Delete draft</Button>
+            </form>
+          ) : null}
         </div>
       </div>
 
@@ -74,6 +86,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               <thead className="bg-muted text-left">
                 <tr>
                   <th className="px-4 py-3 font-medium">Item</th>
+                  <th className="px-4 py-3 font-medium">Category</th>
+                  <th className="px-4 py-3 font-medium">Section</th>
                   <th className="px-4 py-3 font-medium">SKU</th>
                   <th className="px-4 py-3 font-medium">Expected</th>
                   <th className="px-4 py-3 font-medium">Flags</th>
@@ -83,6 +97,13 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                 {typedItems.map((item) => (
                   <tr key={item.id} className="border-t">
                     <td className="px-4 py-3 font-medium">{item.name}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">{item.category}</Badge>
+                        {item.alcohol_subcategory ? <Badge variant="outline">{item.alcohol_subcategory}</Badge> : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.section_label}</td>
                     <td className="px-4 py-3 text-muted-foreground">{item.sku ?? '—'}</td>
                     <td className="px-4 py-3">{item.expected_qty}</td>
                     <td className="px-4 py-3">
@@ -98,6 +119,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           </div>
         </CardContent>
       </Card>
+      {profile.role === 'admin' ? <AddLineItemForm eventId={typedEvent.id} /> : null}
     </div>
   )
 }
